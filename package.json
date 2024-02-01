@@ -1,0 +1,19 @@
+{
+  "name": "ssl-autoupdater",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ansi-html": "^0.0.9",
+    "colors": "^1.4.0",
+    "ejs": "^3.1.9",
+    "nodemailer": "^6.9.9",
+    "tencentcloud-sdk-nodejs": "^4.0.684"
+  }
+}
