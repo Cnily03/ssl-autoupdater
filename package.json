@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rm -rf dist/* dist/.[!.]* dist/..?* && tsc && tsc-alias",
+    "test": "npm run build && node test/index.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,14 @@
     "colors": "^1.4.0",
     "ejs": "^3.1.9",
     "nodemailer": "^6.9.9",
-    "tencentcloud-sdk-nodejs": "^4.0.684"
+    "qiniu": "^7.11.0",
+    "tencentcloud-sdk-nodejs": "^4.0.684",
+    "urllib": "^3.22.2"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "ts-loader": "^9.5.1",
+    "tsc-alias": "^1.8.8",
+    "typescript": "^5.3.3"
   }
 }

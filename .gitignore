@@ -4,3 +4,8 @@ node_modules/**/*
 .vscode/
 .idea/
 .DS_Store
+
+dist/
+
+*.self.js
+*.self.json

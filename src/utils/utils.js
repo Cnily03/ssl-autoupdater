@@ -35,8 +35,15 @@ function sha256(str) {
     return hash.digest("hex");
 }
 
+function hmacSha1(str, secretKey) {
+    let hmac = crypto.createHmac("sha1", secretKey);
+    hmac.update(str);
+    return hmac.digest("base64");
+}
+
 module.exports = {
     escapeHtml,
     ansi2html,
-    sha256
+    sha256,
+    hmacSha1
 }

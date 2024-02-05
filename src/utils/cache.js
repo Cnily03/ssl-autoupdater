@@ -26,6 +26,7 @@ class Cache {
             if (coming[k] !== origin[k]) return true
             return false
         }
+        return true
     }
 }
 
