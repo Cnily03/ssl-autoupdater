@@ -1,10 +1,10 @@
-const crypto = require("crypto");
-const ansiHTML = require('ansi-html');
-require('colors');
+import crypto from "crypto"
+import ansiHTML from 'ansi-html'
+import "colors"
 
-function escapeHtml(str) {
+export function escapeHtml(str: string) {
     return str.replace(/[&<>"' \n]/g, function (tag) {
-        const lookup = {
+        const lookup: any = {
             '&': '&amp;',
             '<': '&lt;',
             '>': '&gt;',
@@ -18,7 +18,7 @@ function escapeHtml(str) {
 
 }
 
-function ansi2html(str) {
+export function ansi2html(str: string) {
     ansiHTML.setColors({
         reset: ['50596c', 'f8f9fa'],
     })
@@ -29,21 +29,14 @@ function ansi2html(str) {
         .replace(/([^>]+)$/g, "<span>$1</span>")
 }
 
-function sha256(str) {
+export function sha256(str: crypto.BinaryLike) {
     let hash = crypto.createHash("sha256");
     hash.update(str);
     return hash.digest("hex");
 }
 
-function hmacSha1(str, secretKey) {
+export function hmacSha1(str: crypto.BinaryLike, secretKey: crypto.BinaryLike) {
     let hmac = crypto.createHmac("sha1", secretKey);
     hmac.update(str);
     return hmac.digest("base64");
-}
-
-module.exports = {
-    escapeHtml,
-    ansi2html,
-    sha256,
-    hmacSha1
 }

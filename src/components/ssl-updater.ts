@@ -1,4 +1,4 @@
-import MailSender from "@/utils/mail"
+import MailSender from "@/utils/mail-sender"
 import Timer from "@/utils/timer"
 import Cache from "@/utils/cache"
 import { Session } from "@/components/session"
@@ -159,7 +159,7 @@ export default abstract class SSLUpdater {
     static formatCert(content: string) {
         content = content.trim();
         content = content.replace(/\r\n/g, "\n");
-        while (/\n\n/.test(content)) content = content.replace(/\n\n/g, "\n");
+        content = content.replace(/\n+/g, "\n");
         return content;
     }
 
@@ -200,6 +200,7 @@ export default abstract class SSLUpdater {
 
                 let message = that.genMsg(trigger_id, status_record_array, that.session.lines());
 
+                this.output.log("Sending message...")
                 await that.sendMsg("[SSL Updater] 证书更新结果通知", message)
                     .catch(err => { that.output.error(err); })
 

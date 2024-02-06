@@ -6,7 +6,7 @@ import fs from "fs"
 import path from "path"
 import Timer from "@/utils/timer"
 import { sha256, ansi2html } from "@/utils/utils"
-import MailSender from "@/utils/mail"
+import MailSender from "@/utils/mail-sender"
 import SSLUpdater, { SSLUpdaterOptions } from "@/components/ssl-updater"
 import "colors"
 

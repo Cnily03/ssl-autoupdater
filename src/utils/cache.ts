@@ -1,21 +1,22 @@
-class Cache {
+export default class Cache {
+    private cache: Record<string, any>;
     constructor() {
         this.cache = {}
     }
 
-    set(key, value) {
+    set(key: any, value: any) {
         this.cache[JSON.stringify(key)] = value
     }
 
-    get(key) {
+    get(key: any) {
         return this.cache[JSON.stringify(key)]
     }
 
-    is_changed(key, value) {
+    is_changed(key: any, value: any) {
         return this._different(this.cache[JSON.stringify(key)], value)
     }
 
-    _different(origin, coming) {
+    private _different(origin: any, coming: any) {
         if (typeof coming !== "object") return coming !== origin
         if (typeof origin !== "object") return true
         for (let k in coming) {
@@ -29,5 +30,3 @@ class Cache {
         return true
     }
 }
-
-module.exports = Cache

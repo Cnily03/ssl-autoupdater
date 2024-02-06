@@ -2,7 +2,7 @@ import fs from "fs"
 import path from "path"
 import Timer from "@/utils/timer"
 import { sha256, ansi2html, hmacSha1 } from "@/utils/utils"
-import MailSender from "@/utils/mail"
+import MailSender from "@/utils/mail-sender"
 import SSLUpdater, { SSLUpdaterOptions, CertificateData } from "@/components/ssl-updater"
 import urllib from "urllib"
 import "colors"
@@ -637,7 +637,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
             if (reqBody) access += reqBody;
             const base64_to_safe = (v: string) => v.replace(/\//g, '_').replace(/\+/g, '-');
             let digest = hmacSha1(access, secretKey);
-            return "QBox " + accessKey + ":" + base64_to_safe(digest);
+            return accessKey + ":" + base64_to_safe(digest);
         }
     }
 
@@ -651,7 +651,8 @@ export class QiniuSSLUpdater extends SSLUpdater {
         return await urllib.request(uri, {
             method: method,
             headers: {
-                "Authorization": accessToken,
+                "content-type": contentType,
+                "Authorization": "QBox " + accessToken,
             },
             content: body
         }).then(r => JSON.parse(r.data.toString())).catch(err => { throw err });
@@ -736,7 +737,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
 
     async triggerUpdate(domains: string[]): Promise<StatusRecord[]> {
         let status_record_json: { [cert_id: string]: StatusRecord } = {};
-        const code = (c?: number) => typeof c === "undefined" ? "?" : c
+        const code = (c?: number) => typeof c === "undefined" ? "?" : c.toString();
         try {
             const detectAll = typeof domains === "undefined" || domains.length === 0;
             this.output.log("OPTION", "DETECT_ALL", detectAll ? "ON" : "OFF");
