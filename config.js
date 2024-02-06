@@ -1,5 +1,6 @@
 module.exports = {
     qcloud: {
+        enable: false,
         secretId: "",
         secretKey: "",
         forceUploadDays: 15, // 距离证书过期多少天，强制上传证书
@@ -8,6 +9,7 @@ module.exports = {
         founder: "acme.sh" // 证书查找器（使用内置 acme.sh 查找器）
     },
     qiniu: {
+        enable: false,
         accessKey: "",
         secretKey: "",
         forceUploadDays: 15,
@@ -16,13 +18,14 @@ module.exports = {
         founder: "acme.sh"
     },
     mailserver: {
+        enable: false,
         smtp_host: "smtp.example.com",
         smtp_port: 465,
         smtp_secure: true,
         smtp_username: "notifications@example.com",
         smtp_password: "password",
         sender_name: "SSL Updater",
-        sender_email: "notifications@exaple.com",
+        sender_email: "notifications@example.com",
         receiver: ["example@receiver.com"]
     }
 }

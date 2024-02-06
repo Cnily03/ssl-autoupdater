@@ -1,16 +1,26 @@
 {
   "name": "ssl-autoupdater",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "Automatically update SSL certificate on different cloud platforms",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "compile-template": "node compile-template.js",
     "build": "rm -rf dist/* dist/.[!.]* dist/..?* && tsc && tsc-alias && npm run compile-template",
-    "test": "npm run build && node test/index.js"
+    "test": "npm run build && node test/index.js",
+    "docker": "node test/docker.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["auto", "SSL", "update"],
+  "author": "Cnily03",
+  "email": "cnily03@outlook.com",
   "license": "MIT",
+  "engines": {
+    "node": ">=16.13.1"
+  },
+  "repository": "https://github.com/Cnily03/ssl-autoupdater",
+  "bugs": "https://github.com/Cnily03/ssl-autoupda/issues",
+  "homepage": "https://github.com/Cnily03/ssl-autoupda#readme",
+  "changelogs": "https://github.com/Cnily03/ssl-autoupda/releases",
   "dependencies": {
     "ansi-html": "^0.0.9",
     "colors": "^1.4.0",
@@ -27,5 +37,10 @@
     "ts-loader": "^9.5.1",
     "tsc-alias": "^1.8.8",
     "typescript": "^5.3.3"
-  }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ]
 }
