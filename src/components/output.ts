@@ -15,54 +15,45 @@ export class Output {
         }
     }
 
+    private _output(consoleFunc: Function, append: string[], args: any[]) {
+        let date_str = date_string().gray
+        let append_str = append.join(" ")
+        let session_output = [date_str, append_str, ...args]
+        let console_output = [date_str, `[${this.identifier}]`.gray, append_str, ...args]
+        this.session.appendLine(session_output.join(" "));
+        return consoleFunc(...console_output)
+    }
+
     log(...args: any[]) {
         // each log message is gray
-        args = args.map((arg: string) => arg.gray)
-        args = [date_string().gray, `[LOG]`.gray, ...args]
-        this.session.appendLine(args.join(" "));
-        if (this.identifier) args.unshift(`[${this.identifier}]`.gray)
-        return console.log(...args)
+        args = args.map((arg: any) => {
+            if (typeof arg === "string") return arg.gray
+            else return arg
+        })
+        return this._output(console.log, ["[LOG]".gray], args)
     }
 
     info(...args: any[]) {
-        args = [date_string().gray, `[INFO]`.blue, ...args]
-        this.session.appendLine(args.join(" "));
-        if (this.identifier) args.unshift(`[${this.identifier}]`.gray)
-        return console.info(...args)
+        return this._output(console.info, ["[INFO]".blue], args)
     }
 
     warn(...args: any[]) {
-        args = [date_string().gray, `[WARN]`.yellow, ...args]
-        this.session.appendLine(args.join(" "));
-        if (this.identifier) args.unshift(`[${this.identifier}]`.gray)
-        return console.warn(...args)
+        return this._output(console.warn, ["[WARN]".yellow], args)
     }
 
     error(...args: any[]) {
-        args = [date_string().gray, `[ERROR]`.red, ...args]
-        this.session.appendLine(args.join(" "));
-        if (this.identifier) args.unshift(`[${this.identifier}]`.gray)
-        return console.error(...args)
+        return this._output(console.error, ["[ERROR]".red], args)
     }
 
     debug(...args: any[]) {
-        args = [date_string().gray, `[DEBUG]`.magenta, ...args]
-        this.session.appendLine(args.join(" "));
-        if (this.identifier) args.unshift(`[${this.identifier}]`.gray)
-        return console.log(...args)
+        return this._output(console.log, ["[DEBUG]".magenta], args)
     }
 
     success(...args: any[]) {
-        args = [date_string().gray, `[SUCCESS]`.green, ...args]
-        this.session.appendLine(args.join(" "));
-        if (this.identifier) args.unshift(`[${this.identifier}]`.gray)
-        return console.info(...args)
+        return this._output(console.info, ["[SUCCESS]".green], args)
     }
 
     failure(...args: any[]) {
-        args = [date_string().gray, `[FAILURE]`.red, ...args]
-        this.session.appendLine(args.join(" "));
-        if (this.identifier) args.unshift(`[${this.identifier}]`.gray)
-        return console.info(...args)
+        return this._output(console.info, ["[FAILURE]".red], args)
     }
 }

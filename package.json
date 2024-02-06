@@ -20,7 +20,9 @@
     "urllib": "^3.22.2"
   },
   "devDependencies": {
-    "rimraf": "^5.0.5",
+    "@types/ansi-html": "^0.0.0",
+    "@types/ejs": "^3.1.5",
+    "@types/nodemailer": "^6.4.14",
     "ts-loader": "^9.5.1",
     "tsc-alias": "^1.8.8",
     "typescript": "^5.3.3"
