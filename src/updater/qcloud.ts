@@ -7,7 +7,7 @@ import path from "path"
 import Timer from "@/utils/timer"
 import { sha256, ansi2html } from "@/utils/utils"
 import MailSender from "@/utils/mail-sender"
-import SSLUpdater, { SSLUpdaterOptions } from "@/components/ssl-updater"
+import SSLUpdater, { SSLUpdaterOptions, sendMsgStatus } from "@/components/ssl-updater"
 import "colors"
 
 type StatusRecord = {
@@ -306,6 +306,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
      */
     async triggerUpdate(domains: string[]): Promise<StatusRecord[]> {
         let status_record_json: { [cert_id: string]: StatusRecord } = {};
+        const fmt = (c?: number) => typeof c === "undefined" ? "?" : c.toString();
         try {
             const detectAll = typeof domains === "undefined" || domains.length === 0;
             this.output.log("OPTION", "DETECT_ALL", detectAll ? "ON" : "OFF");
@@ -322,7 +323,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
             let cert_list = detectAll ?
                 list_resp.Certificates :
                 list_resp.Certificates.filter(cert => domains.includes(cert.Domain))
-            this.output.log("DATA", "CERT_LIST", "|", "COUNT[TOTAL]", list_resp.TotalCount, "|", "COUNT[FILTERED]", cert_list.length)
+            this.output.log("DATA", "CERT_LIST", "|", "COUNT[TOTAL]", fmt(list_resp.TotalCount), "|", "COUNT[FILTERED]", fmt(cert_list.length))
 
             let need_update_certificates = []; // [{ cert_info, upload_resp }]
 
@@ -440,7 +441,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
                 this.output.log("STEP", "UPLOAD", "DONE");
             }
 
-            this.output.log("DATA", "NEED_UPDATE_CERTIFICATES", "|", "COUNT", need_update_certificates.length)
+            this.output.log("DATA", "NEED_UPDATE_CERTIFICATES", "|", "COUNT", fmt(need_update_certificates.length))
 
             if (need_update_certificates.length === 0) {
                 this.output.info("No certificate needs to be updated, nothing to do");
@@ -521,13 +522,14 @@ export class QCloudSSLUpdater extends SSLUpdater {
         return Object.values(status_record_json)
     }
 
-    async sendMsg(title: string, content: string): Promise<any> {
-        if (!content) return;
+    async sendMsg(title: string, content: string): Promise<sendMsgStatus> {
+        if (!content) return "cancel";
         if (this.mailer) {
-            await this.mailer.send(title, "html", content)
-                .catch(err => { this.output.error(err); })
+            let status = await this.mailer.send(title, "html", content).then(() => true)
+                .catch(err => { this.output.error(err); return false })
+            return status ? "success" : "failure";
         } else {
-            return
+            return "cancel"
         }
     }
 
