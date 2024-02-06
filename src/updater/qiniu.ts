@@ -33,7 +33,14 @@ namespace RequestHeader {
 
 export namespace QiniuAPI {
 
-    export interface APIBaseResponse {
+    export interface ManualInjectedResponse {
+        /**
+         * HTTP 状态码（程序植入）
+         */
+        http_status: number
+    }
+
+    export interface APIBaseResponse extends ManualInjectedResponse {
         /**
          * 前三位与 HTTP 状态码一致，或为 0
          */
@@ -655,11 +662,14 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 "Authorization": "QBox " + accessToken,
             },
             content: body
-        }).then(r => JSON.parse(r.data.toString())).catch(err => { throw err });
+        }).then(r => {
+            r.data.http_status = r.status;
+            return JSON.parse(r.data.toString())
+        }).catch(err => { throw err });
     }
 
-    private is_success_code(code?: number) {
-        if (typeof code === "undefined") return false;
+    private is_success_code(code?: number, http_status?: number) {
+        if (typeof code === "undefined") return http_status === 200;
         else if (code === 0) return true;
         else if (code.toString().startsWith("200")) return true;
         else return false;
@@ -745,7 +755,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
             // get cert list
             this.output.log("STEP", "GET_CERT_LIST", "START");
             let list_resp = await this.getCertList();
-            if (!this.is_success_code(list_resp.code)) {
+            if (!this.is_success_code(list_resp.code, list_resp.http_status)) {
                 this.output.log("STEP", "GET_CERT_LIST", "FAILED".red, "|", "CODE", fmt(list_resp.code));
                 this.output.error(`Failed to get certificate list`);
                 throw new Error(list_resp.error);
@@ -837,7 +847,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     public: local_pubcer,
                     private: local_ptekey
                 });
-                if (!this.is_success_code(upload_resp.code)) {
+                if (!this.is_success_code(upload_resp.code, upload_resp.http_status)) {
                     this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "FAILED".red, "|", "CODE", fmt(upload_resp.code));
                     this.output.error(`Failed to upload certificate for domain ${cert_info.common_name}`);
                     if (upload_resp.error) this.output.error(upload_resp.error);
@@ -873,7 +883,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 // find bound cdn domains
                 this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "START");
                 let domain_list_resp = await this.getCdnDomainList(cert_info.certid);
-                if (!this.is_success_code(domain_list_resp.code)) {
+                if (!this.is_success_code(domain_list_resp.code, domain_list_resp.http_status)) {
                     this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "FAILED".red, "|", "CODE", fmt(domain_list_resp.code));
                     this.output.error(`Failed to get CDN domain list for certificate ${cert_info.certid} (${cert_info.name})`);
                     if (domain_list_resp.error) this.output.error(domain_list_resp.error);
@@ -894,7 +904,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     // get former https config
                     this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "START");
                     let domain_detail_resp = await this.getCdnDomainDetail(one_domain);
-                    if (!this.is_success_code(domain_detail_resp.code)) {
+                    if (!this.is_success_code(domain_detail_resp.code, domain_detail_resp.http_status)) {
                         this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "FAILED".red, "|", "CODE", fmt(domain_detail_resp.code));
                         this.output.error(`Failed to get CDN domain detail for CDN domain ${one_domain}`);
                         if (domain_detail_resp.error) this.output.error(domain_detail_resp.error);
@@ -910,7 +920,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                         forceHttps: domain_detail_resp.https.forceHttps,
                         http2Enable: domain_detail_resp.https.http2Enable
                     });
-                    if (!this.is_success_code(modify_https_resp.code)) {
+                    if (!this.is_success_code(modify_https_resp.code, modify_https_resp.http_status)) {
                         this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "FAILED".red, "|", "CODE", fmt(modify_https_resp.code));
                         this.output.error(`Failed to modify HTTPS configuration for CDN domain ${one_domain}`);
                         if (modify_https_resp.error) this.output.error(modify_https_resp.error);
@@ -934,7 +944,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 }
                 status_record_json[cert_info.certid].old_deleted = false;
                 let delete_resp = await this.deleteCert(cert_info.certid);
-                if (!this.is_success_code(delete_resp.code)) {
+                if (!this.is_success_code(delete_resp.code, delete_resp.http_status)) {
                     this.output.log("STEP", "DELETE_OLD_CERT", "FAILED".red, "|", "CODE", fmt(delete_resp.code));
                     this.output.error(`Failed to delete old certificate ${cert_info.certid}`);
                     if (delete_resp.error) this.output.error(delete_resp.error);
