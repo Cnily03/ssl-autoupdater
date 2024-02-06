@@ -663,8 +663,9 @@ export class QiniuSSLUpdater extends SSLUpdater {
             },
             content: body
         }).then(r => {
-            r.data.http_status = r.status;
-            return JSON.parse(r.data.toString())
+            const res = JSON.parse(r.data.toString())
+            res.http_status = r.status;
+            return res;
         }).catch(err => { throw err });
     }
 
@@ -745,6 +746,27 @@ export class QiniuSSLUpdater extends SSLUpdater {
         return modifyResp as Promise<QiniuAPI.CdnDomainModifyHttpsConf>;
     }
 
+    /**
+     * 等待 CDN 域名更新完成
+     */
+    async _waitUntilNoCdnDomain(certid: string) {
+        const TTL = 15 * 60 * 1000;
+        const DDL = Timer.now() + TTL;
+        return await new Promise((resolve, reject) => {
+            let itvid = setInterval(async () => {
+                let domain_list_resp = await this.getCdnDomainList(certid);
+                if (domain_list_resp.domains.length === 0) {
+                    clearInterval(itvid);
+                    return resolve(true);
+                }
+                if (Timer.now() > DDL) {
+                    clearInterval(itvid);
+                    return resolve(false);
+                }
+            }, 1 * 60 * 1000)
+        })
+    }
+
     async triggerUpdate(domains: string[]): Promise<StatusRecord[]> {
         let status_record_json: { [cert_id: string]: StatusRecord } = {};
         const fmt = (c?: number) => typeof c === "undefined" ? "?" : c.toString();
@@ -757,7 +779,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
             let list_resp = await this.getCertList();
             if (!this.is_success_code(list_resp.code, list_resp.http_status)) {
                 this.output.log("STEP", "GET_CERT_LIST", "FAILED".red, "|", "CODE", fmt(list_resp.code));
-                this.output.error(`Failed to get certificate list`);
+                this.output.failure(`Failed to get certificate list`);
                 throw new Error(list_resp.error);
             }
             this.output.log("STEP", "GET_CERT_LIST", "DONE", "|", "CODE", fmt(list_resp.code));
@@ -842,6 +864,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
 
                 // upload
                 this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "START");
+                this.output.info(`Uploading certificate for domain ${cert_info.common_name}...`);
                 status_record_json[cert_info.certid].uploaded = false;
                 let upload_resp = await this.uploadCert(cert_info.name, cert_info.common_name, {
                     public: local_pubcer,
@@ -849,7 +872,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 });
                 if (!this.is_success_code(upload_resp.code, upload_resp.http_status)) {
                     this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "FAILED".red, "|", "CODE", fmt(upload_resp.code));
-                    this.output.error(`Failed to upload certificate for domain ${cert_info.common_name}`);
+                    this.output.failure(`Failed to upload certificate for domain ${cert_info.common_name}`);
                     if (upload_resp.error) this.output.error(upload_resp.error);
                     this.output.log("STEP", "UPLOAD", "FAILED".red);
                     continue;
@@ -869,9 +892,12 @@ export class QiniuSSLUpdater extends SSLUpdater {
 
                 need_update_certificates.push({ cert_info, upload_resp });
                 this.output.log("STEP", "UPLOAD", "DONE");
+                this.output.success(`Successfully uploaded new certificate ${upload_resp.certID} for domain ${cert_info.common_name} (${cert_info.name})`);
             }
 
             this.output.log("DATA", "NEED_UPDATE_CERTIFICATES", "|", "COUNT", fmt(need_update_certificates.length));
+
+            let delete_promise_pool = [];
 
             for (let { cert_info, upload_resp } of need_update_certificates) {
                 this.output.log("STEP", "UPDATE", "START",
@@ -879,13 +905,14 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     "|", "OLD_CERT_ID", cert_info.certid,
                     "|", "DOMAIN", cert_info.common_name,
                     "|", "ALIAS", cert_info.name);
+                this.output.info(`Updating related CDN domains (apply new certificate ${upload_resp.certID})...`);
 
                 // find bound cdn domains
                 this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "START");
                 let domain_list_resp = await this.getCdnDomainList(cert_info.certid);
                 if (!this.is_success_code(domain_list_resp.code, domain_list_resp.http_status)) {
                     this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "FAILED".red, "|", "CODE", fmt(domain_list_resp.code));
-                    this.output.error(`Failed to get CDN domain list for certificate ${cert_info.certid} (${cert_info.name})`);
+                    this.output.failure(`Failed to get CDN domain list for certificate ${cert_info.certid} (${cert_info.name})`);
                     if (domain_list_resp.error) this.output.error(domain_list_resp.error);
                     this.output.log("STEP", "UPDATE", "FAILED".red);
                     continue;
@@ -906,7 +933,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     let domain_detail_resp = await this.getCdnDomainDetail(one_domain);
                     if (!this.is_success_code(domain_detail_resp.code, domain_detail_resp.http_status)) {
                         this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "FAILED".red, "|", "CODE", fmt(domain_detail_resp.code));
-                        this.output.error(`Failed to get CDN domain detail for CDN domain ${one_domain}`);
+                        this.output.failure(`Failed to get CDN domain detail for CDN domain ${one_domain}`);
                         if (domain_detail_resp.error) this.output.error(domain_detail_resp.error);
                         this.output.log("STEP", "UPDATE_CDN", "FAILED".red);
                         continue;
@@ -914,7 +941,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "DONE", "|", "CODE", fmt(domain_detail_resp.code));
 
                     // update https config (update cert id)
-                    this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "START");
+                    this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "START", "|", "NEW_CERT_ID", upload_resp.certID);
                     let modify_https_resp = await this.modifyCdnHttpsConf(one_domain, {
                         certid: upload_resp.certID,
                         forceHttps: domain_detail_resp.https.forceHttps,
@@ -922,7 +949,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     });
                     if (!this.is_success_code(modify_https_resp.code, modify_https_resp.http_status)) {
                         this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "FAILED".red, "|", "CODE", fmt(modify_https_resp.code));
-                        this.output.error(`Failed to modify HTTPS configuration for CDN domain ${one_domain}`);
+                        this.output.failure(`Failed to modify HTTPS configuration for CDN domain ${one_domain}`);
                         if (modify_https_resp.error) this.output.error(modify_https_resp.error);
                         this.output.log("STEP", "UPDATE_CDN", "FAILED".red);
                         continue;
@@ -930,29 +957,61 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     ++success_count;
                     this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "DONE", "|", "CODE", fmt(modify_https_resp.code));
                 }
-                if (success_count !== domain_list.length)
+                if (success_count !== domain_list.length) {
                     status_record_json[cert_info.certid].cdn_updated = "part"
-                else status_record_json[cert_info.certid].cdn_updated = true;
+                    this.output.warn(`Part of CDN domains failed to update (apply certificate ${upload_resp.certID}), please check manually`);
+                } else {
+                    status_record_json[cert_info.certid].cdn_updated = true;
+                    this.output.success(`Successfully send update task for all related CDN domains (apply certificate ${upload_resp.certID})`);
+                }
                 this.output.log("STEP", "UPDATE_CDN", "DONE", "|", "COUNT[TOTAL]", fmt(domain_list.length), "|", "COUNT[SUCCESS]", fmt(success_count));
 
                 // delete old cert
-                this.output.log("STEP", "DELETE_OLD_CERT", "START", "|", "OLD_CERT_ID", cert_info.certid);
+                this.output.log("STEP", "DELETE_OLD_CERT", "START",
+                    "|", "OLD_CERT_ID", cert_info.certid,
+                    "|", "DOMAIN", cert_info.common_name,
+                    "|", "ALIAS", cert_info.name);
+
                 if (success_count !== domain_list.length) {
                     this.output.log("STEP", "DELETE_OLD_CERT", "SKIP", "|", "REASON", "UPDATE_CDN_NOT_COMPLETE");
                     this.output.info(`Part of CDN domains failed to update, skip deleting old certificate ${cert_info.certid}`)
                     continue;
                 }
-                status_record_json[cert_info.certid].old_deleted = false;
-                let delete_resp = await this.deleteCert(cert_info.certid);
-                if (!this.is_success_code(delete_resp.code, delete_resp.http_status)) {
-                    this.output.log("STEP", "DELETE_OLD_CERT", "FAILED".red, "|", "CODE", fmt(delete_resp.code));
-                    this.output.error(`Failed to delete old certificate ${cert_info.certid}`);
-                    if (delete_resp.error) this.output.error(delete_resp.error);
-                    continue;
-                }
-                status_record_json[cert_info.certid].old_deleted = true;
-                this.output.log("STEP", "DELETE_OLD_CERT", "DONE", "|", "CODE", fmt(delete_resp.code));
+
+                const p = new Promise(async (resolve, reject) => {
+
+                    this.output.log("PROCESS", "WAIT_UNTIL_CDN_UPDATE_COMPLETE", "|", "OLD_CERT_ID", cert_info.certid);
+                    this.output.info(`Pending for CDN update complete (certificate ${cert_info.certid})...`)
+                    const intime = await this._waitUntilNoCdnDomain(cert_info.certid)
+                    this.output.info(`Pending done (certificate ${cert_info.certid}). Start deleting...`)
+
+                    status_record_json[cert_info.certid].old_deleted = false;
+                    let delete_resp = await this.deleteCert(cert_info.certid);
+
+                    if (!this.is_success_code(delete_resp.code, delete_resp.http_status)) {
+                        this.output.log("STEP", "DELETE_OLD_CERT", "FAILED".red,
+                            "|", "CODE", fmt(delete_resp.code),
+                            "|", "OLD_CERT_ID", cert_info.certid,
+                            "|", "DOMAIN", cert_info.common_name,
+                            "|", "ALIAS", cert_info.name);
+                        this.output.failure(`Failed to delete old certificate ${cert_info.certid}`);
+                        if (delete_resp.error) this.output.error(delete_resp.error);
+                        return resolve(false);
+                    }
+
+                    status_record_json[cert_info.certid].old_deleted = true;
+                    this.output.log("STEP", "DELETE_OLD_CERT", "DONE",
+                        "|", "CODE", fmt(delete_resp.code),
+                        "|", "OLD_CERT_ID", cert_info.certid,
+                        "|", "DOMAIN", cert_info.common_name,
+                        "|", "ALIAS", cert_info.name);
+
+                    this.output.success(`Certificate ${cert_info.certid} for domain ${cert_info.common_name} has been deleted`);
+                    return resolve(true);
+                })
+                delete_promise_pool.push(p);
             }
+            await Promise.all(delete_promise_pool);
         } catch (err) { this.output.error(err); }
         return Object.values(status_record_json);
     }
@@ -1074,7 +1133,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 text: item["comment"]
             }
 
-            return item;
+            return templateArgs;
         })
 
         // terminal_output

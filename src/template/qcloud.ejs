@@ -1,7 +1,5 @@
 <head>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/spectre.css/0.4.5/spectre.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/spectre.css/0.4.5/spectre-exp.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/spectre.css/0.4.5/spectre-icons.min.css">
+    <style inject="css/spectre.min.css" escape="false"></style>
     <style>
         body {
             padding: 1rem;
@@ -45,35 +43,35 @@
                     <!-- ejs for -->
                     <% for (const info of data) { %>
                     <p>
-                        <span class="line head"><strong>证书 #<%= info.old_cert_id.content %></strong></span>
+                        <span class="line head"><strong>证书 #<%= info.old_cert_id.text %></strong></span>
                         <span class="line">
                             <span class="text-dark thread">新证书 ID：</span>
-                            <span class="text-<%= info.new_cert_id.color %>"><%= info.new_cert_id.content %></span>
+                            <span class="text-<%= info.new_cert_id.color %>"><%= info.new_cert_id.text %></span>
                         </span>
                         <span class="line">
                             <span class="text-dark">原证书 ID：</span>
-                            <span class="text-<%= info.old_cert_id.color %>"><%= info.old_cert_id.content %></span>
-                            <span class="text-<%= info.old_deleted.color %>">（<%= info.old_deleted.content %>）</span>
+                            <span class="text-<%= info.old_cert_id.color %>"><%= info.old_cert_id.text %></span>
+                            <span class="text-<%= info.old_deleted.color %>">（<%= info.old_deleted.text %>）</span>
                         </span>
                         <span class="line">
                             <span class="text-dark">主域名：</span>
-                            <span class="text-<%= info.domain.color %>"><%= info.domain.content %></span>
+                            <span class="text-<%= info.domain.color %>"><%= info.domain.text %></span>
                         </span>
                         <span class="line">
                             <span class="text-dark">SANS 域名：</span>
-                            <span class="text-<%= info.sans.color %>"><%= info.sans.content %></span>
+                            <span class="text-<%= info.sans.color %>"><%= info.sans.text %></span>
                         </span>
                         <span class="line">
                             <span class="text-dark">证书上传：</span>
-                            <span class="text-<%= info.uploaded.color %>"><%= info.uploaded.content %></span>
+                            <span class="text-<%= info.uploaded.color %>"><%= info.uploaded.text %></span>
                         </span>
                         <span class="line">
                             <span class="text-dark">资源迁移：</span>
-                            <span class="text-<%= info.updated.color %>"><%= info.updated.content %></span>
+                            <span class="text-<%= info.updated.color %>"><%= info.updated.text %></span>
                         </span>
                         <span class="line">
                             <span class="text-dark">备注：</span>
-                            <span class="text-<%= info.comment.color %>"><%= info.comment.content %></span>
+                            <span class="text-<%= info.comment.color %>"><%= info.comment.text %></span>
                         </span>
                     </p>
                     <% } %>

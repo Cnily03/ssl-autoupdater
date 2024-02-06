@@ -409,6 +409,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
 
                 // upload
                 this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "START")
+                this.output.info(`Uploading certificate for domain ${cert_info.Domain}...`);
                 status_record_json[cert_info.CertificateId].uploaded = false;
                 let upload_resp = await this.uploadCert(local_pubcer, local_ptekey, {
                     type: cert_info.CertificateType as UploadCertOptions["type"],
@@ -428,7 +429,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
                     continue;
                 }
 
-                this.output.success(`New certificate ${upload_resp.CertificateId} (domain: ${cert_info.Domain}) uploaded`)
+                this.output.success(`Uploaded new certificate ${upload_resp.CertificateId} (domain: ${cert_info.Domain})`)
 
                 // upload complete
                 this.output.log("PROCESS", "CACHE");
@@ -487,7 +488,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
 
                 // update
                 this.output.log("STEP", "UPDATE[UPDATE_CERT_INSTANCE]", "START");
-                this.output.log(`Updating resources for certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain}) (${cert_info.Alias})...`);
+                this.output.info(`Updating resources for certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain}) (${cert_info.Alias})...`);
                 status_record_json[cert_info.CertificateId].updated = false;
                 let update_resp = await this.updateCertInstance(upload_resp.CertificateId, cert_info.CertificateId, {
                     resources: resource_types as ResourceType[],
@@ -508,12 +509,12 @@ export class QCloudSSLUpdater extends SSLUpdater {
                 // delete old cert
                 this.output.log("STEP", "DELETE_OLD_CERT", "START", "|", "OLD_CERT_ID", cert_info.CertificateId);
                 status_record_json[cert_info.CertificateId].old_deleted = false;
-                this.output.log(`Deleting old certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain})...`);
+                this.output.info(`Deleting old certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain})...`);
                 let del_resp = await this.deleteCert(cert_info.CertificateId);
                 this.output.log("STEP", "DELETE_OLD_CERT", "DONE", "|", "STATUS", del_resp.DeleteResult ? "SUCCESS" : "FAILED".red);
                 if (del_resp.DeleteResult) {
                     status_record_json[cert_info.CertificateId].old_deleted = true;
-                    this.output.info(`Certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain}) Deleted`);
+                    this.output.success(`Certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain}) Deleted`);
                 } else {
                     this.output.failure(`Failed to delete certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain})`);
                 }
@@ -634,7 +635,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
                 text: item["comment"]
             }
 
-            return item;
+            return templateArgs;
         })
 
         // terminal_output
