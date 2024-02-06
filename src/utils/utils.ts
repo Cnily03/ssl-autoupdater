@@ -15,7 +15,6 @@ export function escapeHtml(str: string) {
         };
         return lookup[tag] || tag;
     });
-
 }
 
 export function ansi2html(str: string) {

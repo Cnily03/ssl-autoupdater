@@ -1,6 +1,6 @@
 type DateLike = number | string | Date
 
-export default class Timer {
+export class Timer {
 
     private _start_time: number;
     private _interval: number;
@@ -48,3 +48,5 @@ export default class Timer {
         return this.record = this.future();
     }
 }
+
+export default Timer;

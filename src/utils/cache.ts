@@ -1,4 +1,4 @@
-export default class Cache {
+export class Cache {
     private cache: Record<string, any>;
     constructor() {
         this.cache = {}
@@ -30,3 +30,5 @@ export default class Cache {
         return true
     }
 }
+
+export default Cache

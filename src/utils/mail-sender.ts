@@ -46,10 +46,21 @@ export type MailSenderOptions = {
          * The password for authentication
          */
         password: string
-    }
+    },
+    /**
+     * The sender of the email
+     */
+    sender?: {
+        name: string,
+        email: string
+    },
+    /**
+     * The receivers of the email
+     */
+    receiver?: string[],
 }
 
-export default class MailSender {
+export class MailSender {
     private transporter;
     private sender: {
         name: string,
@@ -81,6 +92,14 @@ export default class MailSender {
         this.Template = {
             Text: new Template(),
             HTML: new Template()
+        }
+
+        if (options.sender) {
+            this.setSender(options.sender.name, options.sender.email);
+        }
+
+        if (options.receiver) {
+            this.setReceiver(...options.receiver);
         }
     }
 
@@ -134,3 +153,4 @@ export default class MailSender {
     }
 }
 
+export default MailSender;
