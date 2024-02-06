@@ -3,7 +3,7 @@ import path from "path"
 import Timer from "@/utils/timer"
 import { sha256, ansi2html, hmacSha1 } from "@/utils/utils"
 import MailSender from "@/utils/mail-sender"
-import SSLUpdater, { SSLUpdaterOptions, CertificateData } from "@/components/ssl-updater"
+import SSLUpdater, { SSLUpdaterOptions, CertificateData, sendMsgStatus } from "@/components/ssl-updater"
 import urllib from "urllib"
 import "colors"
 
@@ -737,7 +737,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
 
     async triggerUpdate(domains: string[]): Promise<StatusRecord[]> {
         let status_record_json: { [cert_id: string]: StatusRecord } = {};
-        const code = (c?: number) => typeof c === "undefined" ? "?" : c.toString();
+        const fmt = (c?: number) => typeof c === "undefined" ? "?" : c.toString();
         try {
             const detectAll = typeof domains === "undefined" || domains.length === 0;
             this.output.log("OPTION", "DETECT_ALL", detectAll ? "ON" : "OFF");
@@ -746,14 +746,14 @@ export class QiniuSSLUpdater extends SSLUpdater {
             this.output.log("STEP", "GET_CERT_LIST", "START");
             let list_resp = await this.getCertList();
             if (!this.is_success_code(list_resp.code)) {
-                this.output.log("STEP", "GET_CERT_LIST", "FAILED".red, "|", "CODE", code(list_resp.code));
+                this.output.log("STEP", "GET_CERT_LIST", "FAILED".red, "|", "CODE", fmt(list_resp.code));
                 this.output.error(`Failed to get certificate list`);
                 throw new Error(list_resp.error);
             }
-            this.output.log("STEP", "GET_CERT_LIST", "DONE", "|", "CODE", code(list_resp.code));
+            this.output.log("STEP", "GET_CERT_LIST", "DONE", "|", "CODE", fmt(list_resp.code));
 
             let cert_list = detectAll ? list_resp.certs : list_resp.certs.filter(c => domains.includes(c.common_name));
-            this.output.log("DATA", "CERT_LIST", "|", "COUNT[TOTAL]", list_resp.certs.length, "|", "COUNT[FILTERED]", cert_list.length);
+            this.output.log("DATA", "CERT_LIST", "|", "COUNT[TOTAL]", fmt(list_resp.certs.length), "|", "COUNT[FILTERED]", fmt(cert_list.length));
 
             let need_update_certificates = []; // { cert_info, upload_resp }
 
@@ -797,7 +797,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 // get detail
                 this.output.log("STEP", "UPLOAD[GET_OLD_DETAIL]", "START", "|", "OLD_CERT_ID", cert_info.certid)
                 let detail_resp = await this.getCertDetail(cert_info.certid);
-                this.output.log("STEP", "UPLOAD[GET_OLD_DETAIL]", "DONE", "|", "CODE", code(detail_resp.code));
+                this.output.log("STEP", "UPLOAD[GET_OLD_DETAIL]", "DONE", "|", "CODE", fmt(detail_resp.code));
                 if (detail_resp.cert.orderid !== '') {
                     // not uploaded by user, skip
                     this.output.log("STEP", "UPLOAD", "SKIP", "|", "REASON", "NOT_USER_UPLOADED");
@@ -838,16 +838,16 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     private: local_ptekey
                 });
                 if (!this.is_success_code(upload_resp.code)) {
-                    this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "FAILED".red, "|", "CODE", code(upload_resp.code));
+                    this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "FAILED".red, "|", "CODE", fmt(upload_resp.code));
                     this.output.error(`Failed to upload certificate for domain ${cert_info.common_name}`);
-                    this.output.error(upload_resp.error);
+                    if (upload_resp.error) this.output.error(upload_resp.error);
                     this.output.log("STEP", "UPLOAD", "FAILED".red);
                     continue;
                 }
                 status_record_json[cert_info.certid].uploaded = true;
                 status_record_json[cert_info.certid].new_cert_id = upload_resp.certID;
                 this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "DONE",
-                    "|", "CODE", code(upload_resp.code),
+                    "|", "CODE", fmt(upload_resp.code),
                     "|", "NEW_CERT_ID", upload_resp.certID);
 
                 // upload complete
@@ -861,7 +861,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 this.output.log("STEP", "UPLOAD", "DONE");
             }
 
-            this.output.log("DATA", "NEED_UPDATE_CERTIFICATES", "|", "COUNT", need_update_certificates.length);
+            this.output.log("DATA", "NEED_UPDATE_CERTIFICATES", "|", "COUNT", fmt(need_update_certificates.length));
 
             for (let { cert_info, upload_resp } of need_update_certificates) {
                 this.output.log("STEP", "UPDATE", "START",
@@ -874,16 +874,16 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "START");
                 let domain_list_resp = await this.getCdnDomainList(cert_info.certid);
                 if (!this.is_success_code(domain_list_resp.code)) {
-                    this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "FAILED".red, "|", "CODE", code(domain_list_resp.code));
+                    this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "FAILED".red, "|", "CODE", fmt(domain_list_resp.code));
                     this.output.error(`Failed to get CDN domain list for certificate ${cert_info.certid} (${cert_info.name})`);
-                    this.output.error(domain_list_resp.error);
+                    if (domain_list_resp.error) this.output.error(domain_list_resp.error);
                     this.output.log("STEP", "UPDATE", "FAILED".red);
                     continue;
                 }
-                this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "DONE", "|", "CODE", code(domain_list_resp.code));
+                this.output.log("STEP", "UPDATE[GET_CDN_DOMAIN_LIST]", "DONE", "|", "CODE", fmt(domain_list_resp.code));
 
                 let domain_list = domain_list_resp.domains.map(d => d.name);
-                this.output.log("DATA", "CDN_DOMAIN_LIST", "|", "COUNT", domain_list.length);
+                this.output.log("DATA", "CDN_DOMAIN_LIST", "|", "COUNT", fmt(domain_list.length));
 
                 // update cdn cert
                 status_record_json[cert_info.certid].cdn_updated = false;
@@ -895,13 +895,13 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "START");
                     let domain_detail_resp = await this.getCdnDomainDetail(one_domain);
                     if (!this.is_success_code(domain_detail_resp.code)) {
-                        this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "FAILED".red, "|", "CODE", code(domain_detail_resp.code));
+                        this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "FAILED".red, "|", "CODE", fmt(domain_detail_resp.code));
                         this.output.error(`Failed to get CDN domain detail for CDN domain ${one_domain}`);
-                        this.output.error(domain_detail_resp.error);
+                        if (domain_detail_resp.error) this.output.error(domain_detail_resp.error);
                         this.output.log("STEP", "UPDATE_CDN", "FAILED".red);
                         continue;
                     }
-                    this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "DONE", "|", "CODE", code(domain_detail_resp.code));
+                    this.output.log("STEP", "UPDATE_CDN[GET_OLD_HTTPS_CONF]", "DONE", "|", "CODE", fmt(domain_detail_resp.code));
 
                     // update https config (update cert id)
                     this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "START");
@@ -911,19 +911,19 @@ export class QiniuSSLUpdater extends SSLUpdater {
                         http2Enable: domain_detail_resp.https.http2Enable
                     });
                     if (!this.is_success_code(modify_https_resp.code)) {
-                        this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "FAILED".red, "|", "CODE", code(modify_https_resp.code));
+                        this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "FAILED".red, "|", "CODE", fmt(modify_https_resp.code));
                         this.output.error(`Failed to modify HTTPS configuration for CDN domain ${one_domain}`);
-                        this.output.error(modify_https_resp.error);
+                        if (modify_https_resp.error) this.output.error(modify_https_resp.error);
                         this.output.log("STEP", "UPDATE_CDN", "FAILED".red);
                         continue;
                     }
                     ++success_count;
-                    this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "DONE", "|", "CODE", code(modify_https_resp.code));
+                    this.output.log("STEP", "UPDATE_CDN[MODIFY_NEW]", "DONE", "|", "CODE", fmt(modify_https_resp.code));
                 }
                 if (success_count !== domain_list.length)
                     status_record_json[cert_info.certid].cdn_updated = "part"
                 else status_record_json[cert_info.certid].cdn_updated = true;
-                this.output.log("STEP", "UPDATE_CDN", "DONE", "|", "COUNT[TOTAL]", domain_list.length, "|", "COUNT[SUCCESS]", success_count);
+                this.output.log("STEP", "UPDATE_CDN", "DONE", "|", "COUNT[TOTAL]", fmt(domain_list.length), "|", "COUNT[SUCCESS]", fmt(success_count));
 
                 // delete old cert
                 this.output.log("STEP", "DELETE_OLD_CERT", "START", "|", "OLD_CERT_ID", cert_info.certid);
@@ -935,25 +935,26 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 status_record_json[cert_info.certid].old_deleted = false;
                 let delete_resp = await this.deleteCert(cert_info.certid);
                 if (!this.is_success_code(delete_resp.code)) {
-                    this.output.log("STEP", "DELETE_OLD_CERT", "FAILED".red, "|", "CODE", code(delete_resp.code));
+                    this.output.log("STEP", "DELETE_OLD_CERT", "FAILED".red, "|", "CODE", fmt(delete_resp.code));
                     this.output.error(`Failed to delete old certificate ${cert_info.certid}`);
-                    this.output.error(delete_resp.error);
+                    if (delete_resp.error) this.output.error(delete_resp.error);
                     continue;
                 }
                 status_record_json[cert_info.certid].old_deleted = true;
-                this.output.log("STEP", "DELETE_OLD_CERT", "DONE", "|", "CODE", code(delete_resp.code));
+                this.output.log("STEP", "DELETE_OLD_CERT", "DONE", "|", "CODE", fmt(delete_resp.code));
             }
         } catch (err) { this.output.error(err); }
         return Object.values(status_record_json);
     }
 
-    async sendMsg(title: string, content: string): Promise<any> {
-        if (!content) return;
+    async sendMsg(title: string, content: string): Promise<sendMsgStatus> {
+        if (!content) return "cancel";
         if (this.mailer) {
-            await this.mailer.send(title, "html", content)
-                .catch(err => { this.output.error(err); })
+            let status = await this.mailer.send(title, "html", content).then(() => true)
+                .catch(err => { this.output.error(err); return false })
+            return status ? "success" : "failure";
         } else {
-            return
+            return "cancel"
         }
     }
 

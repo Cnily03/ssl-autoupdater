@@ -11,7 +11,7 @@ module.exports = {
         accessKey: "",
         secretKey: "",
         forceUploadDays: 15,
-        startTime: '2024-02-01 04:00:00',
+        startTime: '2024-02-01 16:00:00',
         interval: 24 * 60 * 60 * 1000,
         founder: "acme.sh"
     },

@@ -19,6 +19,8 @@ export type CertificateData = {
 type FounderFunc = (domain: string, sans: string[], algorithm?: string) => Partial<CertificateData>
 type AvailableFounder = "acme.sh"
 
+export type sendMsgStatus = "success" | "failure" | "cancel"
+
 export type SSLUpdaterOptions = {
     /**
      * 根据域名和算法获取证书内容的函数，返回证书内容和私钥内容 \
@@ -201,8 +203,11 @@ export default abstract class SSLUpdater {
                 let message = that.genMsg(trigger_id, status_record_array, that.session.lines());
 
                 this.output.log("Sending message...")
-                await that.sendMsg("[SSL Updater] 证书更新结果通知", message)
+                let send_result = await that.sendMsg("[SSL Updater] 证书更新结果通知", message)
                     .catch(err => { that.output.error(err); })
+                if (send_result === "cancel") this.output.log("Send canceled")
+                else if (send_result === "failure") this.output.error("Send failed")
+                else this.output.log("Send done")
 
                 ++trigger_cnt;
             }
@@ -232,5 +237,5 @@ export default abstract class SSLUpdater {
      * @param title 消息标题
      * @param content 消息内容
      */
-    abstract sendMsg(title: string, content: string): Promise<any>;
+    abstract sendMsg(title: string, content: string): Promise<sendMsgStatus>;
 }
