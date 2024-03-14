@@ -30,13 +30,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and Publish Docker Image
         run: |
-          tag=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
-          if [[ $tag == v[0-9]* ]]; then
-            tag=$(echo $tag | sed 's/v//')
+          tag="$(echo ${{ github.ref }} | sed 's/refs\/tags\///')"
+          if [[ "$tag" =~ ^v[0-9]* ]]; then
+            version="$(echo $tag | sed 's/v//')"
+          else
+            version="$tag"
           fi
-          docker build -t ${{ vars.DOCKER_HUB_USERNAME }}/ssl-autoupdater:$tag .
+          docker build -t "${{ vars.DOCKER_HUB_USERNAME }}/ssl-autoupdater:$version" .
           docker login -u ${{ vars.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_TOKEN }}
-          docker push ${{ vars.DOCKER_HUB_USERNAME }}/ssl-autoupdater:$tag
+          docker push "${{ vars.DOCKER_HUB_USERNAME }}/ssl-autoupdater:$version"
+          if [[ "$tag" == "$(git describe --tags --abbrev=0)" ]]; then
+            docker tag "${{ vars.DOCKER_HUB_USERNAME }}/ssl-autoupdater:$version" "${{ vars.DOCKER_HUB_USERNAME }}/ssl-autoupdater:latest"
+            docker push "${{ vars.DOCKER_HUB_USERNAME }}/ssl-autoupdater:latest"
+          fi
 
   npm:
     runs-on: 'ubuntu-latest'

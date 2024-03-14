@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  ssl-autoupdater:
+    image: cnily03/ssl-autoupdater
+    container_name: ssl-autoupdater
+    tty: true
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      # Make directory `data` in the same directory as your docker-compose.yml file
+      # Create your configuration file in data directory
+      - ./data:/app/data
+      - ~/.acme.sh:/root/.acme.sh
+    restart: unless-stopped

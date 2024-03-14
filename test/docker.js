@@ -7,6 +7,9 @@ if (!fs.existsSync(CONF_PATH)) {
     console.error("Config file not found at " + CONF_PATH)
     process.exit(1)
 }
+
+let is_watch = false
+
 // const CONFIG = require("../config.js")
 const CONFIG = require(CONF_PATH)
 
@@ -55,6 +58,7 @@ if (CONFIG.qcloud.enable) {
     if (CONFIG.mailserver.enable) opts.mailer = new autossl.MailSender(mailOpts())
     const QCloudUpdater = new autossl.updater.QCloud(CONFIG.qcloud.secretId, CONFIG.qcloud.secretKey, opts)
     QCloudUpdater.watch()
+    is_watch = true
 }
 
 if (CONFIG.qiniu.enable) {
@@ -62,4 +66,10 @@ if (CONFIG.qiniu.enable) {
     if (CONFIG.mailserver.enable) opts.mailer = new autossl.MailSender(mailOpts())
     const QiniuUpdater = new autossl.updater.Qiniu(CONFIG.qiniu.accessKey, CONFIG.qiniu.secretKey, opts)
     QiniuUpdater.watch()
+    is_watch = true
+}
+
+if (!is_watch) {
+    console.log("No updater enabled. Please stop the container.")
+    process.stdin.resume();
 }
