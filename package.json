@@ -8,7 +8,8 @@
     "compile-template": "node compile-template.js",
     "build": "rm -rf dist/* dist/.[!.]* dist/..?* && tsc && tsc-alias && npm run compile-template",
     "test": "npm run build && node test/index.js",
-    "docker": "node test/docker.js"
+    "docker": "node test/docker.js",
+    "docker-log": "mkdir -p /app/data/logs && node test/docker.js | tee /app/data/logs/$(date +\"%Y%m%d_%H%M%S\").log"
   },
   "keywords": ["auto", "SSL", "update"],
   "author": "Cnily03",

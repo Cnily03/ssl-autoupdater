@@ -1,7 +1,16 @@
 import { Session } from "@/components/session"
 import "colors"
 
-const date_string = () => new Date().toLocaleString().replace(/\/(\d)([^\d])/, "/0$1$2").replace(/\/(\d)([^\d])/, "/0$1$2").replace(/\//g, "-")
+const date_string = () => {
+    let date = new Date()
+    let year = date.getFullYear()
+    let month = (date.getMonth() + 1).toString().padStart(2, "0")
+    let day = date.getDate().toString().padStart(2, "0")
+    let hours = date.getHours().toString().padStart(2, "0")
+    let minutes = date.getMinutes().toString().padStart(2, "0")
+    let seconds = date.getSeconds().toString().padStart(2, "0")
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
 
 export type OutputConstructor = new (session: Session, identifier?: string) => Output
 

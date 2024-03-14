@@ -63,10 +63,15 @@ Pull `cnily03/ssl-autoupdater` from Docker Hub
 docker run -itd \
   -v /path/to/your/config.js:/app/data/config.js \
   -v ~/.acme.sh:/root/.acme.sh \
-  --restart=always \
+  --restart=unless-stopped \
   --name ssl-autoupdater \
   cnily03/ssl-autoupdater
 ```
+
+> [!TIP]
+> Docker compose file is also provided in the repository.
+> Edit it according to annotations in the file.
+> Then run `docker compose up -d` to start the service.
 
 Replace `/path/to/your/config.js` with your own configuration file.
 
