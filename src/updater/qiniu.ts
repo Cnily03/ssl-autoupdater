@@ -3,7 +3,7 @@ import path from "path"
 import Timer from "@/utils/timer"
 import { sha256, ansi2html, hmacSha1 } from "@/utils/utils"
 import MailSender from "@/utils/mail-sender"
-import SSLUpdater, { SSLUpdaterOptions, CertificateData, sendMsgStatus } from "@/components/ssl-updater"
+import SSLUpdater, { SSLUpdaterOptions, CertificateData, sendMsgStatus, TriggerReturnTyoe } from "@/components/ssl-updater"
 import urllib from "urllib"
 import "colors"
 
@@ -77,11 +77,11 @@ export namespace QiniuAPI {
          */
         create_time: number
         /**
-         * 证书生效时间
+         * 证书生效时间（单位：秒）
          */
         not_before: number
         /**
-         * 证书过期时间
+         * 证书过期时间（单位：秒）
          */
         not_after: number
         /**
@@ -156,11 +156,11 @@ export namespace QiniuAPI {
          */
         create_time: number
         /**
-         * 证书生效时间
+         * 证书生效时间（单位：秒）
          */
         not_before: number
         /**
-         * 证书过期时间
+         * 证书过期时间（单位：秒）
          */
         not_after: number
         /**
@@ -767,8 +767,9 @@ export class QiniuSSLUpdater extends SSLUpdater {
         })
     }
 
-    async triggerUpdate(domains: string[]): Promise<StatusRecord[]> {
+    async triggerUpdate(domains: string[]): Promise<TriggerReturnTyoe<StatusRecord[]>> {
         let status_record_json: { [cert_id: string]: StatusRecord } = {};
+        let do_send_mail = false
         const fmt = (c?: number) => typeof c === "undefined" ? "?" : c.toString();
         try {
             const detectAll = typeof domains === "undefined" || domains.length === 0;
@@ -795,13 +796,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     "|", "DOMAIN", cert_info.common_name,
                     "|", "ALIAS", cert_info.name);
 
-                let need_continue = this._force_upload_days > 0 && (new Date(cert_info.not_after).getTime() - Timer.now() < this._force_upload_days * 24 * 60 * 60 * 1000)
-
-                if (!need_continue) {
-                    this.output.log("STEP", "UPLOAD", "SKIP", "|", "REASON", "SCHEDULE_NOT_MATCH");
-                    this.output.info(`Domain ${cert_info.common_name} doesn't match schedule, skip`);
-                    continue;
-                }
+                let is_force_upload = this._force_upload_days > 0 && (new Date(cert_info.not_after * 1000).getTime() - Timer.now() < this._force_upload_days * 24 * 60 * 60 * 1000)
 
                 const { public: local_pubcer, private: local_ptekey } = this._founder(cert_info.common_name, cert_info.dnsnames, cert_info.encrypt);
                 if (typeof local_pubcer !== "string" || typeof local_ptekey !== "string") {
@@ -818,13 +813,17 @@ export class QiniuSSLUpdater extends SSLUpdater {
                 let is_local_changed = this.cache.is_changed([cert_info.common_name, cert_info.dnsnames, cert_info.encrypt], {
                     public: local_pubcer_sha256,
                     private: local_ptekey_sha256
-                })
+                }, true)
 
-                if (!is_local_changed) {
+                let need_upload = is_force_upload || is_local_changed
+
+                if (!need_upload && !is_local_changed) {
                     this.output.log("STEP", "UPLOAD", "SKIP", "|", "REASON", "LOCAL_CERT_NO_CHANGE");
                     this.output.info(`Local certificate for domain ${cert_info.common_name} has no change, no need to update`);
                     continue;
                 }
+
+                this.output.log("PROCESS", "FORCE_UPLOAD", is_force_upload ? "ON" : "OFF")
 
                 // get detail
                 this.output.log("STEP", "UPLOAD[GET_OLD_DETAIL]", "START", "|", "OLD_CERT_ID", cert_info.certid)
@@ -861,6 +860,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
                     old_deleted: null,
                     comment: ''
                 }
+                do_send_mail = true
 
                 // upload
                 this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "START");
@@ -1013,7 +1013,10 @@ export class QiniuSSLUpdater extends SSLUpdater {
             }
             await Promise.all(delete_promise_pool);
         } catch (err) { this.output.error(err); }
-        return Object.values(status_record_json);
+        return {
+            msg_material: Object.values(status_record_json),
+            send_mail: do_send_mail
+        }
     }
 
     async sendMsg(title: string, content: string): Promise<sendMsgStatus> {

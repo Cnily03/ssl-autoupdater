@@ -2,7 +2,7 @@ import MailSender from "@/utils/mail-sender"
 import Timer from "@/utils/timer"
 import Cache from "@/utils/cache"
 import { Session } from "@/components/session"
-import { Output } from "@/components/output"
+import { ConsoleOutput, Output, OutputConstructor } from "@/components/output"
 import fs from "fs"
 import path from "path"
 import { sha256 } from "@/utils/utils"
@@ -10,6 +10,17 @@ import { sha256 } from "@/utils/utils"
 export type CertificateData = {
     public: string,
     private: string
+}
+
+export type TriggerReturnTyoe<T> = {
+    /**
+     * 生成消息的原料
+     */
+    msg_material: T,
+    /**
+     * 是否发送邮件
+     */
+    send_mail: boolean
 }
 
 /**
@@ -48,17 +59,11 @@ export type SSLUpdaterOptions = {
      * 邮件发送器（默认不发送邮件）
      */
     mailer?: MailSender
-}
-
-export type StatusRecord = {
-    new_cert_id: string,
-    old_cert_id: string,
-    domain: string,
-    sans: string[],
-    uploaded: boolean | null,
-    updated: boolean | null,
-    old_deleted: boolean | null,
-    comment: string
+    /**
+     * 输出的类构造器
+     * @experimental 该选项可能在未来的版本中移除
+     */
+    outputCreator?: OutputConstructor
 }
 
 function genTimeBasedHash(identifier: string, random_upper: boolean = false) {
@@ -140,6 +145,12 @@ export default abstract class SSLUpdater {
         }
         else throw new TypeError("mailer must be an instance of MailSender");
 
+        // opts.outputCreator
+        let outputCreator = ConsoleOutput as OutputConstructor
+        if (opts.outputCreator instanceof Function && typeof opts.outputCreator.name === "string") {
+            outputCreator = opts.outputCreator;
+        }
+
         // timer
         let defaultTimerStart = new Date();
         defaultTimerStart.setHours(4, 0, 0, 0)
@@ -149,7 +160,7 @@ export default abstract class SSLUpdater {
         this.cache = new Cache();
 
         this.session = new Session()
-        this.output = new Output(this.session, this.identifier);
+        this.output = new outputCreator(this.session, this.identifier);
 
         // ID of setInterval
         this.watch_pool = new Set();
@@ -178,41 +189,43 @@ export default abstract class SSLUpdater {
             if (typeof d !== "string") throw new TypeError("Domains must be string or array of string")
         });
 
-        let on_running = false, trigger_cnt = 0;
-        let func: () => any;
-        const itvid = setInterval(func = async () => {
-            if (on_running) return;
-            if (that.timer.is_expired()) {
-                that.timer.set_future();
+        let trigger_cnt = 0;
+        // let on_running = false;
+        const itvid = this.timer.watch(async (run_time) => {
+            // if (on_running) return;
 
-                on_running = true;
-                that.session.start();
+            // on_running = true;
+            that.session.start();
 
-                let trigger_id = genTimeBasedHash(this.identifier, false);
-                that.output.log(`[#${trigger_cnt}] Timer triggered, ID: ${trigger_id}`);
-                let status_record_array = await that.triggerUpdate(domains as string[])
-                    .catch(err => {
-                        that.output.error(err);
-                        return [];
-                    })
-                that.output.log(`[#${trigger_cnt}] Trigger complete`);
+            let trigger_id = genTimeBasedHash(this.identifier, false);
+            that.output.log(`[#${trigger_cnt}] Timer triggered, ID: ${trigger_id}`);
+            let { msg_material, send_mail } = await that.triggerUpdate(domains as string[])
+                .catch(err => {
+                    that.output.error(err);
+                    return { msg_material: [], send_mail: true }
+                })
+            that.output.log(`[#${trigger_cnt}] Trigger complete`);
 
-                that.session.end();
-                on_running = false;
+            that.session.end();
+            // on_running = false;
 
-                let message = that.genMsg(trigger_id, status_record_array, that.session.lines());
+            let message = that.genMsg(trigger_id, msg_material, that.session.lines());
 
+            if (send_mail) {
                 this.output.log("Sending message...")
                 let send_result = await that.sendMsg("[SSL Updater] 证书更新结果通知", message)
                     .catch(err => { that.output.error(err); })
                 if (send_result === "cancel") this.output.log("Send canceled")
                 else if (send_result === "failure") this.output.error("Send failed")
                 else this.output.log("Send done")
-
-                ++trigger_cnt;
             }
-        }, 10 * 1000)
-        func();
+
+            ++trigger_cnt;
+
+        }, {
+            preventWhenRunning: true,
+            InstantlyRun: true
+        })
 
         this.watch_pool.add(itvid);
         return itvid;
@@ -222,15 +235,15 @@ export default abstract class SSLUpdater {
      * 触发更新
      * @param domains 检测的域名列表
      */
-    abstract triggerUpdate(domains: string[]): Promise<any[]>;
+    abstract triggerUpdate(domains: string[]): Promise<TriggerReturnTyoe<Object>>;
 
     /**
      * 解析状态记录
      * @param trigger_id 触发 ID
-     * @param record_list 状态记录列表
+     * @param msg_material 生成消息的原料
      * @param terminal_lines 终端输出
      */
-    abstract genMsg(trigger_id: string, record_list: any[], terminal_lines: string[]): string;
+    abstract genMsg(trigger_id: string, msg_material: Object, terminal_lines: string[]): string;
 
     /**
      * 发送消息

@@ -3,9 +3,16 @@ import "colors"
 
 const date_string = () => new Date().toLocaleString().replace(/\/(\d)([^\d])/, "/0$1$2").replace(/\/(\d)([^\d])/, "/0$1$2").replace(/\//g, "-")
 
-export class Output {
-    private session: Session;
+export type OutputConstructor = new (session: Session, identifier?: string) => Output
+
+export abstract class Output {
+    protected session: Session;
     public identifier: string;
+
+    /**
+     * Output template class
+     * - Remember to implement session output via `session.appendLine`
+     */
     constructor(session: Session, identifier?: string) {
         this.session = session;
         if (typeof identifier === "string") {
@@ -13,6 +20,21 @@ export class Output {
         } else {
             this.identifier = ""
         }
+    }
+
+    abstract log(...args: any[]): any
+    abstract info(...args: any[]): any
+    abstract warn(...args: any[]): any
+    abstract error(...args: any[]): any
+    abstract debug(...args: any[]): any
+    abstract success(...args: any[]): any
+    abstract failure(...args: any[]): any
+}
+
+export class ConsoleOutput extends Output {
+
+    constructor(session: Session, identifier?: string) {
+        super(session, identifier)
     }
 
     private _output(consoleFunc: Function, append: string[], args: any[]) {

@@ -7,5 +7,4 @@ node_modules/**/*
 
 dist/
 
-*.self.js
-*.self.json
+data/**/*

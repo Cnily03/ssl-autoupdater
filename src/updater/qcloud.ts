@@ -1,5 +1,4 @@
-// import tencentcloud from "tencentcloud-sdk-nodejs" // compile error
-import { ssl } from "tencentcloud-sdk-nodejs"
+import * as tencentcloud from "tencentcloud-sdk-nodejs"
 import SSLModule from "tencentcloud-sdk-nodejs/tencentcloud/services/ssl/v20191205/ssl_models"
 import { Client as QCloudSSLClient } from "tencentcloud-sdk-nodejs/tencentcloud/services/ssl/v20191205/ssl_client";
 import fs from "fs"
@@ -7,7 +6,7 @@ import path from "path"
 import Timer from "@/utils/timer"
 import { sha256, ansi2html } from "@/utils/utils"
 import MailSender from "@/utils/mail-sender"
-import SSLUpdater, { SSLUpdaterOptions, sendMsgStatus } from "@/components/ssl-updater"
+import SSLUpdater, { SSLUpdaterOptions, TriggerReturnTyoe, sendMsgStatus } from "@/components/ssl-updater"
 import "colors"
 
 type StatusRecord = {
@@ -112,7 +111,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
             this.mailer.Template.HTML.set(fs.readFileSync(path.resolve(__dirname, "../template/qcloud.ejs"), "utf-8"));
         }
 
-        this._CLIENT = new ssl.v20191205.Client({
+        this._CLIENT = new tencentcloud.ssl.v20191205.Client({
             credential: {
                 secretId: secretId,
                 secretKey: secretKey,
@@ -233,7 +232,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
                         for (k in task_resp) {
                             if (!Object.prototype.hasOwnProperty.call(task_resp, k)) continue;
                             if (!Array.isArray(task_resp[k])) continue;
-                            let task_value: any = task_resp[k as keyof BindResource];
+                            let task_value: any[] | undefined = task_resp[k as keyof BindResource];
                             if (typeof task_value === "undefined" || task_value.length === 0) continue;
                             else {
                                 let val = task_value.filter((item: any) => {
@@ -248,7 +247,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
                                 res[k] = val;
                             }
                         }
-                        if (typeof task_info.CertId === "string") result[task_info.CertId] = null;
+                        if (typeof task_info.CertId === "string") result[task_info.CertId] = res;
                         return resolve(void 0);
                     }
                 }, 10 * 1000)
@@ -304,8 +303,9 @@ export class QCloudSSLUpdater extends SSLUpdater {
      * 触发更新
      * @param domains 检测的域名列表（留空则检测所有）
      */
-    async triggerUpdate(domains: string[]): Promise<StatusRecord[]> {
+    async triggerUpdate(domains: string[]): Promise<TriggerReturnTyoe<StatusRecord[]>> {
         let status_record_json: { [cert_id: string]: StatusRecord } = {};
+        let do_send_mail = false;
         const fmt = (c?: number) => typeof c === "undefined" ? "?" : c.toString();
         try {
             const detectAll = typeof domains === "undefined" || domains.length === 0;
@@ -338,13 +338,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
                     continue; // invalid cert info
                 }
 
-                let need_continue = this._force_upload_days > 0 && (new Date(cert_info.CertEndTime).getTime() - Timer.now() < this._force_upload_days * 24 * 60 * 60 * 1000)
-
-                if (!need_continue) {
-                    this.output.log("STEP", "UPLOAD", "SKIP", "|", "REASON", "SCHEDULE_NOT_MATCH")
-                    this.output.info(`Domain ${cert_info.Domain} doesn't match schedule, skip`);
-                    continue;
-                }
+                let is_force_upload = this._force_upload_days > 0 && (new Date(cert_info.CertEndTime).getTime() - Timer.now() < this._force_upload_days * 24 * 60 * 60 * 1000)
 
                 const { public: local_pubcer, private: local_ptekey } = this._founder(cert_info.Domain, cert_info.CertSANs || [], cert_info.EncryptAlgorithm) || {};
                 if (typeof local_pubcer !== "string" || typeof local_ptekey !== "string") {
@@ -361,13 +355,17 @@ export class QCloudSSLUpdater extends SSLUpdater {
                 let is_local_changed = this.cache.is_changed([cert_info.Domain, cert_info.CertSANs, cert_info.EncryptAlgorithm], {
                     public: local_pubcer_sha256,
                     private: local_ptekey_sha256
-                })
+                }, true)
 
-                if (!is_local_changed) {
+                let need_upload = is_force_upload || is_local_changed;
+
+                if (!need_upload && !is_local_changed) {
                     this.output.log("STEP", "UPLOAD", "SKIP", "|", "REASON", "LOCAL_CERT_NO_CHANGE")
                     this.output.info(`Local certificate for domain ${cert_info.Domain} has no change, no need to update`);
                     continue;
                 }
+
+                this.output.log("PROCESS", "FORCE_UPLOAD", is_force_upload ? "ON" : "OFF")
 
                 // get detail
                 this.output.log("STEP", "UPLOAD[GET_OLD_DETAIL]", "START", "|", "CERT_ID", cert_info.CertificateId);
@@ -406,6 +404,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
                     old_deleted: null,
                     comment: ''
                 }
+                do_send_mail = true;
 
                 // upload
                 this.output.log("STEP", "UPLOAD[UPLOAD_NEW_CERT]", "START")
@@ -446,7 +445,10 @@ export class QCloudSSLUpdater extends SSLUpdater {
 
             if (need_update_certificates.length === 0) {
                 this.output.info("No certificate needs to be updated, nothing to do");
-                return Object.values(status_record_json);
+                return {
+                    msg_material: Object.values(status_record_json),
+                    send_mail: false // nothing to do, no need to send mail
+                }
             }
 
             // fetch bound resources
@@ -494,12 +496,14 @@ export class QCloudSSLUpdater extends SSLUpdater {
                     resources: resource_types as ResourceType[],
                     regions: resource_regions
                 })
-                this.output.log("STEP", "UPDATE[UPDATE_CERT_INSTANCE]", "DONE", "|", "STATUS", update_resp.DeployStatus);
+                this.output.log("STEP", "UPDATE[UPDATE_CERT_INSTANCE]", "DONE", "|", "STATUS", update_resp.DeployStatus, "|", "RECORD_ID", update_resp.DeployRecordId);
 
-                if (update_resp.DeployStatus !== 1) {
-                    this.output.log("STEP", "UPDATE", "SKIP", "|", "REASON", "DEPLOY_FAILED".red)
-                    this.output.failure(`Failed to update resources for certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain}) (${cert_info.Alias})`);
-                    continue;
+                if (update_resp.DeployStatus !== 1) { // 部署失败
+                    if (typeof update_resp.DeployRecordId !== "number" || update_resp.DeployRecordId < 0) { // 是否是正在进行中
+                        this.output.log("STEP", "UPDATE", "SKIP", "|", "REASON", "DEPLOY_FAILED".red)
+                        this.output.failure(`Failed to update resources for certificate ${cert_info.CertificateId} (domain: ${cert_info.Domain}) (${cert_info.Alias})`);
+                        continue;
+                    }
                 }
 
                 this.output.log("STEP", "UPDATE", "DONE");
@@ -520,7 +524,10 @@ export class QCloudSSLUpdater extends SSLUpdater {
                 }
             }
         } catch (err) { this.output.error(err); }
-        return Object.values(status_record_json)
+        return {
+            msg_material: Object.values(status_record_json),
+            send_mail: do_send_mail
+        }
     }
 
     async sendMsg(title: string, content: string): Promise<sendMsgStatus> {

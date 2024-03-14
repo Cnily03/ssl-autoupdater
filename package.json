@@ -1,6 +1,6 @@
 {
   "name": "ssl-autoupdater",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "description": "Automatically update SSL certificate on different cloud platforms",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

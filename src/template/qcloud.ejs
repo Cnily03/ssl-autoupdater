@@ -1,84 +1,74 @@
-<head>
-    <style inject="css/spectre.min.css" escape="false"></style>
-    <style>
-        body {
-            padding: 1rem;
-        }
-
-        .docs .card {
-            border: 0;
-            box-shadow: 0 0.25rem 1rem rgba(48, 55, 66, .15);
-            width: 100%;
-        }
-
-        .text-light {
-            color: #acb3c2 !important;
-        }
-
-        .text-gray {
-            color: #79808e;
-        }
-
-        span.line {
-            display: block;
-        }
-
-        span.line.head {
-            margin: 0.25rem 0;
-            font-size: 1rem;
-        }
-    </style>
-</head>
-
 <body>
-    <div class="docs">
-        <div class="column col-12 col-xs-12">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title h5"><strong>腾讯云 SSL 证书自动更新结果通知</strong></div>
-                    <div class="card-subtitle text-light">Trigger ID #<%= trigger_id %></div>
-                </div>
-                <div class="card-body">
+<table align="center" style="width: 100%; padding: 1rem;">
+    <%
+    const use_color = {
+        'light': "style='color: #acb3c2 !important;'",
+        'gray': "style='color: #79808e !important;'",
+        'dark': "style='color: #3b4351 !important;'",
+        'success': "style='color: #32b643 !important;'",
+        'warning': "style='color: #ffb700 !important;'",
+        'error': "style='color: #e85600 !important;'",
+    }
+    const use_class = {
+        'line': "style='display: block;'",
+        'line head': "style='display: block; margin: 0.25rem 0; font-size: .9rem;'",
+    }
+    %>
+    <tr>
+        <td align="center" style="display: block; -ms-flex: 1; max-width: 100%; padding-left: .4rem; padding-right: .4rem;">
+            <table style="display: block; border: 0; box-shadow: 0 0.25rem 1rem rgba(48, 55, 66, .15); width: min(1000px, 100%); max-width: 100%; background: #fff; border: .05rem solid #e7e9ed; border-radius: .1rem; padding: 1rem;">
+                <tr>
+                    <td width="1000px">
+                    <div style="font-size: 1rem;"><strong>腾讯云 SSL 证书自动更新结果通知</strong></div>
+                    <div <%- use_color['light'] %>>Trigger ID #<%= trigger_id %></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td width="1000px" style="padding-top: .5rem;">
                     <p><span>你的腾讯云证书在近期进行了一次自动更新，以下是更新结果</span></p>
-                    <!-- ejs for -->
                     <% for (const info of data) { %>
                     <p>
-                        <span class="line head"><strong>证书 #<%= info.old_cert_id.text %></strong></span>
-                        <span class="line">
-                            <span class="text-dark thread">新证书 ID：</span>
-                            <span class="text-<%= info.new_cert_id.color %>"><%= info.new_cert_id.text %></span>
+                        <span <%- use_class['line head'] %>><strong>证书 #<%= info.old_cert_id.text %></strong></span>
+                        <span <%- use_class['line'] %>>
+                            <span <%- use_color['dark'] %>>新证书 ID：</span>
+                            <span <%- use_color[info.new_cert_id.color] %>><%= info.new_cert_id.text %></span>
                         </span>
-                        <span class="line">
-                            <span class="text-dark">原证书 ID：</span>
-                            <span class="text-<%= info.old_cert_id.color %>"><%= info.old_cert_id.text %></span>
-                            <span class="text-<%= info.old_deleted.color %>">（<%= info.old_deleted.text %>）</span>
+                        <span <%- use_class['line'] %>>
+                            <span <%- use_color['dark'] %>>原证书 ID：</span>
+                            <span <%- use_color[info.old_cert_id.color] %>><%= info.old_cert_id.text %></span>
+                            <span <%- use_color[info.old_deleted.color] %>>（<%= info.old_deleted.text %>）</span>
                         </span>
-                        <span class="line">
-                            <span class="text-dark">主域名：</span>
-                            <span class="text-<%= info.domain.color %>"><%= info.domain.text %></span>
+                        <span <%- use_class['line'] %>>
+                            <span <%- use_color['dark'] %>>主域名：</span>
+                            <span <%- use_color[info.domain.color] %>><%= info.domain.text %></span>
                         </span>
-                        <span class="line">
-                            <span class="text-dark">SANS 域名：</span>
-                            <span class="text-<%= info.sans.color %>"><%= info.sans.text %></span>
+                        <span <%- use_class['line'] %>>
+                            <span <%- use_color['dark'] %>>SANS 域名：</span>
+                            <span <%- use_color[info.sans.color] %>><%= info.sans.text %></span>
                         </span>
-                        <span class="line">
-                            <span class="text-dark">证书上传：</span>
-                            <span class="text-<%= info.uploaded.color %>"><%= info.uploaded.text %></span>
+                        <span <%- use_class['line'] %>>
+                            <span <%- use_color['dark'] %>>证书上传：</span>
+                            <span <%- use_color[info.uploaded.color] %>><%= info.uploaded.text %></span>
                         </span>
-                        <span class="line">
-                            <span class="text-dark">资源迁移：</span>
-                            <span class="text-<%= info.updated.color %>"><%= info.updated.text %></span>
+                        <span <%- use_class['line'] %>>
+                            <span <%- use_color['dark'] %>>资源迁移：</span>
+                            <span <%- use_color[info.updated.color] %>><%= info.updated.text %></span>
                         </span>
-                        <span class="line">
-                            <span class="text-dark">备注：</span>
-                            <span class="text-<%= info.comment.color %>"><%= info.comment.text %></span>
+                        <span <%- use_class['line'] %>>
+                            <span <%- use_color['dark'] %>>备注：</span>
+                            <span <%- use_color[info.comment.color] %>><%= info.comment.text %></span>
                         </span>
                     </p>
                     <% } %>
-                    <span class="line head"><strong>控制台输出</strong></span>
-                    <pre class="code" data-lang="OUTPUT"><code><%- output %></code></pre>
-                </div>
-            </div>
-        </div>
-    </div>
+                    <span <%- use_class['line head'] %>><strong>控制台输出</strong></span>
+                    <pre style="display: grid; border-radius: .1rem; color: #50596c; position: relative; font-size: 1em; line-height: 0; width: 100%;">
+                        <span style="color: #acb3c2; font-size: .7rem; position: absolute; right: .4rem; top: .6rem; -webkit-user-select: none; user-select: none;">OUTPUT</span>
+                        <code style='background: #f8f9fa; color: inherit; display: block; line-height: 1.5; overflow-x: auto; padding: 1rem; border-radius: .1rem; font-size: 85%; font-family: "Cascadia Mono", Consolas, "JetBrains Mono", "Courier New", "SF Mono", "Segoe UI Mono", "Roboto Mono", Menlo, Courier, monospace;'><%- output %></code>
+                    </pre>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
 </body>

@@ -32,21 +32,22 @@ if (!fs.existsSync(templateOutDir)) {
 const templateRootDir = path.resolve(rootDir, 'template')
 const templateFiles = fs.readdirSync(templateRootDir).filter(file => file.endsWith('.ejs'))
 for (let fn of templateFiles) {
-    let content = fs.readFileSync(path.resolve(templateRootDir, fn), 'utf8')
-    // <style inject="css/spectre.min.css" escape="false"></style>
-    content = content.replace(/<([a-zA-Z\-]+)\s+inject="([^"]+)"\s+escape="([^"]+)"\s*><\/([a-zA-Z\-]+)>/g,
-        function (substring, tag, inject, escape, closeTag) {
-            let injectFilePath = path.resolve(templateRootDir, inject)
-            let injectContent = fs.readFileSync(injectFilePath, 'utf8')
-            escape = escape === 'true' || escape === '1'
-            if (escape) {
-                injectContent = escapeHtml(injectContent)
-            }
-            return `<${tag}>${injectContent}</${closeTag}>`
-        }
-    )
+    // let content = fs.readFileSync(path.resolve(templateRootDir, fn), 'utf8')
+    // // <style inject="css/spectre.min.css" escape="false"></style>
+    // content = content.replace(/<([a-zA-Z\-]+)\s+inject="([^"]+)"\s+escape="([^"]+)"\s*><\/([a-zA-Z\-]+)>/g,
+    //     function (substring, tag, inject, escape, closeTag) {
+    //         let injectFilePath = path.resolve(templateRootDir, inject)
+    //         let injectContent = fs.readFileSync(injectFilePath, 'utf8')
+    //         escape = escape === 'true' || escape === '1'
+    //         if (escape) {
+    //             injectContent = escapeHtml(injectContent)
+    //         }
+    //         return `<${tag}>${injectContent}</${closeTag}>`
+    //     }
+    // )
 
     // write to outDir
     let outFilePath = path.resolve(templateOutDir, fn)
-    fs.writeFileSync(outFilePath, content, 'utf8')
+    // fs.writeFileSync(outFilePath, content, 'utf8')
+    fs.copyFileSync(path.resolve(templateRootDir, fn), outFilePath)
 }
