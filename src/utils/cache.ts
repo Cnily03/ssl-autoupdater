@@ -12,7 +12,9 @@ export class Cache {
         return this.cache[JSON.stringify(key)]
     }
 
-    is_changed(key: any, value: any) {
+    is_changed(key: any, value: any, strict = true) {
+        const cache_key = JSON.stringify(key)
+        if (!Object.prototype.hasOwnProperty.call(this.cache, cache_key)) return strict ? true : false
         return this._different(this.cache[JSON.stringify(key)], value)
     }
 
