@@ -3,7 +3,7 @@ import path from "path"
 import Timer from "@/utils/timer"
 import { sha256, ansi2html, hmacSha1 } from "@/utils/utils"
 import MailSender from "@/utils/mail-sender"
-import SSLUpdater, { SSLUpdaterOptions, CertificateData, sendMsgStatus, TriggerReturnTyoe } from "@/components/ssl-updater"
+import SSLUpdater, { SSLUpdaterOptions, CertificateData, sendMsgStatus, TriggerReturnType } from "@/components/ssl-updater"
 import urllib from "urllib"
 import "colors"
 
@@ -767,7 +767,7 @@ export class QiniuSSLUpdater extends SSLUpdater {
         })
     }
 
-    async triggerUpdate(domains: string[]): Promise<TriggerReturnTyoe<StatusRecord[]>> {
+    async triggerUpdate(domains: string[]): Promise<TriggerReturnType<StatusRecord[]>> {
         let status_record_json: { [cert_id: string]: StatusRecord } = {};
         let do_send_mail = false
         const fmt = (c?: number) => typeof c === "undefined" ? "?" : c.toString();

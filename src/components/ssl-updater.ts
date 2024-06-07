@@ -12,7 +12,7 @@ export type CertificateData = {
     private: string
 }
 
-export type TriggerReturnTyoe<T> = {
+export type TriggerReturnType<T> = {
     /**
      * 生成消息的原料
      */
@@ -235,7 +235,7 @@ export default abstract class SSLUpdater {
      * 触发更新
      * @param domains 检测的域名列表
      */
-    abstract triggerUpdate(domains: string[]): Promise<TriggerReturnTyoe<Object>>;
+    abstract triggerUpdate(domains: string[]): Promise<TriggerReturnType<Object>>;
 
     /**
      * 解析状态记录

@@ -6,7 +6,7 @@ import path from "path"
 import Timer from "@/utils/timer"
 import { sha256, ansi2html } from "@/utils/utils"
 import MailSender from "@/utils/mail-sender"
-import SSLUpdater, { SSLUpdaterOptions, TriggerReturnTyoe, sendMsgStatus } from "@/components/ssl-updater"
+import SSLUpdater, { SSLUpdaterOptions, TriggerReturnType, sendMsgStatus } from "@/components/ssl-updater"
 import "colors"
 
 type StatusRecord = {
@@ -303,7 +303,7 @@ export class QCloudSSLUpdater extends SSLUpdater {
      * 触发更新
      * @param domains 检测的域名列表（留空则检测所有）
      */
-    async triggerUpdate(domains: string[]): Promise<TriggerReturnTyoe<StatusRecord[]>> {
+    async triggerUpdate(domains: string[]): Promise<TriggerReturnType<StatusRecord[]>> {
         let status_record_json: { [cert_id: string]: StatusRecord } = {};
         let do_send_mail = false;
         const fmt = (c?: number) => typeof c === "undefined" ? "?" : c.toString();
